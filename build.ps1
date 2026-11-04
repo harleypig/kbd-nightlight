@@ -1,5 +1,5 @@
-# Builds bin\kbdlight.exe with the C# compiler that ships with Windows
-# (.NET Framework 4.8). No SDK needed.
+# Builds bin\kbdlight.exe and bin\kbd-nightlight.exe with the C# compiler
+# that ships with Windows (.NET Framework 4.8). No SDK needed.
 
 $ErrorActionPreference = 'Stop'
 
@@ -10,9 +10,14 @@ $src = Join-Path $PSScriptRoot 'src'
 $bin = Join-Path $PSScriptRoot 'bin'
 New-Item -ItemType Directory -Force $bin | Out-Null
 
-& $csc /nologo /optimize+ /platform:anycpu /target:exe `
-    "/out:$(Join-Path $bin 'kbdlight.exe')" `
-    (Join-Path $src 'Backlight.cs') (Join-Path $src 'KbdLight.cs')
-if ($LASTEXITCODE -ne 0) { throw "csc failed with exit code $LASTEXITCODE" }
+function Build($out, [string[]]$files, [string[]]$refs = @()) {
+    $sources = $files | ForEach-Object { Join-Path $src $_ }
+    $references = $refs | ForEach-Object { "/reference:$_" }
+    & $csc /nologo /optimize+ /platform:anycpu /target:exe "/out:$(Join-Path $bin $out)" $references $sources
+    if ($LASTEXITCODE -ne 0) { throw "csc failed building $out (exit code $LASTEXITCODE)" }
+    Write-Host "Built $(Join-Path $bin $out)"
+}
 
-Write-Host "Built $(Join-Path $bin 'kbdlight.exe')"
+Build 'kbdlight.exe' 'Backlight.cs', 'KbdLight.cs'
+Build 'kbd-nightlight.exe' 'Backlight.cs', 'Session.cs', 'Nightlight.cs', 'Service.cs' 'System.Configuration.dll'
+Copy-Item (Join-Path $src 'kbd-nightlight.exe.config') $bin -Force
